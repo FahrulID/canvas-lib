@@ -1,4 +1,4 @@
-class Lib {
+class App {
     _canvas;
     _ctx;
 
@@ -16,6 +16,8 @@ class Lib {
     {
         this._canvas = document.getElementById(canvas);
         this._ctx = this._canvas.getContext('2d')
+        this._ctx.canvas.width  = window.innerWidth;
+        this._ctx.canvas.height = window.innerHeight;
         this.setEvents();
     }
 
@@ -131,40 +133,6 @@ class Lib {
         this._ctx.translate((-click[0] + this._lastTranslate[0]) * (1/this._zoomScale[0]), (-click[1] + this._lastTranslate[1]) * (1/this._zoomScale[1]))
 
         this.redrawAll()
-
-
-        // let zoom = Math.exp(delta * this._zoomIntensity);
-        // if((this._zoomScale[0] * zoom >= this._minmaxZoom[0][0] && this._zoomScale[1] * zoom >= this._minmaxZoom[0][0]) && (this._zoomScale[0] * zoom <= this._minmaxZoom[1][0] && this._zoomScale[1] * zoom <= this._minmaxZoom[1][0]))
-        // {
-        //     this._ctx.translate(this._lastTranslateZoom[0], this._lastTranslateZoom[1]);
-
-        //     this._lastTranslateZoom[0] -= click[0]/(this._zoomScale[0] * zoom) - click[0]/this._zoomScale[0];
-        //     this._lastTranslateZoom[1] -= click[1]/(this._zoomScale[1] * zoom) - click[1]/this._zoomScale[1];
-
-        //     this._lastTranslate[0] += click[0]/(this._zoomScale[0] * zoom) - click[0]/this._zoomScale[0];
-        //     this._lastTranslate[1] += click[1]/(this._zoomScale[1] * zoom) - click[1]/this._zoomScale[1];
-
-        //     this._ctx.scale(zoom, zoom)
-        //     this._ctx.translate(-this._lastTranslateZoom[0], -this._lastTranslateZoom[1]);
-        //     this._zoomScale[0] *= zoom
-        //     this._zoomScale[1] *= zoom
-
-        //     this.redrawAll()
-        // }
-
-        // let zoom = Math.pow(this._zoomMultiplier, delta)
-        // this._zoomScale[0] *= zoom
-        // this._zoomScale[1] *= zoom
-
-        // let zoomX = zoom
-        // let zoomY = zoom
-        
-        // console.log(this._zoomScale)
-
-        // this._ctx.translate(click[0], click[1])
-        // this._ctx.scale(zoomX, zoomY)
-        // this._ctx.translate(this._lastTranslate[0], this._lastTranslate[1])
-        // this.redrawAll()
     }
 
     createShape(polygons)

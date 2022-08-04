@@ -1,0 +1,85 @@
+// Polygon with holes
+// First array of points => Outer ring
+// The rest of array of points => Inner ring / Holes
+[
+    [
+        [35.0, 10.0], [45.0, 45.0], [15.0, 40.0], [10.0, 20.0], [35.0, 10.0]
+    ], 
+    [
+        [20.0, 30.0], [35.0, 35.0], [30.0, 20.0], [20.0, 30.0]
+    ]
+]
+
+// MultiPolygon
+// An Array of polygons
+[
+    [
+        [
+            [30.0, 20.0], [45.0, 40.0], [10.0, 40.0], [30.0, 20.0]
+        ]
+    ], 
+    [
+        [
+            [15.0, 5.0], [40.0, 10.0], [10.0, 20.0], [5.0, 10.0], [15.0, 5.0]
+        ]
+    ]
+]
+
+// MultiPolygon with holes
+// An Array of polygons with holes
+[
+    [
+        [
+            [40.0, 40.0], [20.0, 45.0], [45.0, 30.0], [40.0, 40.0]
+        ]
+    ], 
+    [
+        [
+            [20.0, 35.0], [10.0, 30.0], [10.0, 10.0], [30.0, 5.0], [45.0, 20.0], [20.0, 35.0]
+        ], 
+        [
+            [30.0, 20.0], [20.0, 15.0], [20.0, 25.0], [30.0, 20.0]
+        ]
+    ]
+]
+
+/* 
+POLYGON Format
+
+CW : ClockWise
+CCW : CounterClockWise
+Nodes format : [x,y], [x',y'], [x'',y'']
+
+Polygon :
+[ 
+    [ 
+        [Polygon CW]
+    ],
+    [
+        [HOLE Polygon CCW]
+    ],
+    [
+        [HOLE Polygon CCW]
+    ]
+]
+
+Multi Polygon :
+[
+    [ 
+        [ 
+            [Polygon CW]
+        ],
+        [
+            [HOLE Polygon CCW]
+        ],
+        [
+            [HOLE Polygon CCW]
+        ]
+    ],
+    [
+        [ 
+            [Polygon CW]
+        ]
+    ]
+]
+*/

@@ -19,5 +19,10 @@
     - Shape supported polygon and multipolygon format
     - Shape supported "holes" inside polygon
 
-## Bugs
+### New
+- Draw Polyons per frame
+- On Hover Shape
+- On click Shape
 
+## Bugs
+- Need to decide format, GeoJSON format or otherwaise ( Hole is ClockWise {GeoJSON} or otherwise )

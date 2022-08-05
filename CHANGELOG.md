@@ -23,5 +23,8 @@
 - Draw Polyons per frame
 - On Hover Shape
 - On click Shape
+- Panning
+- Importing GeoJSON
 
 ## Bugs
+- Performance is sh*t, need to not draw every single frame for all shape

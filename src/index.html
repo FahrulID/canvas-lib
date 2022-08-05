@@ -21,9 +21,15 @@
 
         <script>
             let app;
+            var usa;
             document.addEventListener("DOMContentLoaded", () => {
-                app = new App("canvas") 
+                app = new App("canvas")
+                 
 
+                fetch("./usa.json")
+                .then(response => response.json())
+                .then(json => usa = json)
+                .then(app.importGeoJSON(usa));
                 // app.createShape([ [ 50, 100 ], [ 120, 70 ], [ 90, 70 ], [ 70, 50 ] ])
             })
         </script>

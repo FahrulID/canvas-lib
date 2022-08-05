@@ -7,6 +7,10 @@ class App
     _ctx // Context of the canvas element
     _layers = {} // Layers for canvas
 
+    _lastPan = []
+    _zero = [0, 0]
+    _zoom = [1, 1]
+
     constructor(id)
     {
         // initiate variables
@@ -36,6 +40,7 @@ class App
         this.createLayer('default')
         this.setOnClick()
         this.setOnHover()
+        this.setOnDrag()
     }
 
     start()
@@ -58,6 +63,14 @@ class App
 
         // Adding shape in to layer with name of layer name and push it in to the layer array
         this._layers[layerName].addShape(newShape)
+    }
+
+    importGeoJSON(json)
+    {
+        const t = this
+        json.features.forEach((obj) => {
+            t.createShape(obj.geometry.coordinates)
+        })
     }
 
     // A function to reset the canvas
@@ -119,12 +132,80 @@ class App
         this._canvas.addEventListener('click', function(event) {
             var x = event.pageX - elemLeft,
                 y = elemTop - event.pageY;
+            t.shapeClick([x, y])
 
-            for(const layer in t._layers)
-            {
-                console.log(t._layers[layer].click([x, y], "#aa0707"))
-            }
         }, false);
+    }
+
+    setOnDrag()
+    {
+        let elemLeft = this._canvas.offsetLeft + this._canvas.clientLeft;
+        let elemTop = this._canvas.offsetTop + this._canvas.clientTop + this._canvas.clientHeight;
+
+        let t = this;
+        this._canvas.addEventListener('mousedown', function(event) {
+            var x = event.pageX - elemLeft,
+            y = elemTop - event.pageY;
+            
+            t.mapDown([x, y])
+        })
+
+        this._canvas.addEventListener('mousemove', function(event) {
+            var x = event.pageX - elemLeft,
+                y = elemTop - event.pageY;
+
+            t.mapDrag([x, y])
+        })
+
+        this._canvas.addEventListener('mouseup', function(event) {
+            t.mapUp()
+        })
+    }
+
+    mapDown(coord)
+    {
+        this._lastPan = coord
+        console.log(coord)
+    }
+
+    mapDrag(coord)
+    {
+        const t = this
+        let x = coord[0], y = coord[1];
+        if(this._lastPan == 0)
+            return
+
+        t._zero[0] += (x - t._lastPan[0]) ;
+        t._zero[1] += (y - t._lastPan[1]) ;
+
+        t._ctx.translate((x - t._lastPan[0]) * (1/t._zoom[0]), (y - t._lastPan[1]) * (1/t._zoom[1]))
+        t._lastPan[0] = x
+        t._lastPan[1] = y
+    }
+
+    mapUp()
+    {
+        this._lastPan = []
+    }
+
+    shapeClick(coord)
+    {
+        const t = this
+        for(const layer in t._layers)
+        {
+            console.log(t._layers[layer].click(coord, t._zero))
+        }
+    }
+
+    shapeHover(coord)
+    {
+        const t = this
+        for(const layer in t._layers)
+        {
+            let inside = t._layers[layer].hover(coord, t._zero)
+            if(inside)
+                console.log(inside)
+        }
     }
 
     setOnHover()
@@ -141,12 +222,7 @@ class App
             var x = event.pageX - elemLeft,
                 y = elemTop - event.pageY;
 
-            for(const layer in t._layers)
-            {
-                let inside = t._layers[layer].click([x, y], "#3750B7")
-                if(inside)
-                    console.log(inside)
-            }
+            t.shapeHover([x, y])
         }, false);
     }
 }
@@ -157,6 +233,15 @@ class Shape
     _polygons = [] // Container for Polygon objects
     _isMultiPolygon // Is the shape is in Multi Polygon format ?
     _fill = '#d3d3d3' // Color for the shape
+    _fillList = {
+        'click': '#aa0707',
+        'hover': '#3750B7',
+        'default': '#d3d3d3'
+    }
+
+    _isClicked = false
+    _isHovered = false
+    // _updated = false
 
     constructor(nodes, reverse = false)
     {
@@ -174,7 +259,32 @@ class Shape
     // A function to change the fill of the shape
     changeFill(hex)
     {
-        this._fill = hex
+        this.changeVar("_fill", hex)
+    }
+
+    idle()
+    {
+        this.changeFill(this._fillList.default)
+    }
+
+    hover()
+    {
+        if(this._isClicked)
+            return
+        this.changeFill(this._fillList.hover)
+        this.changeVar("_isHovered", true) 
+    }
+
+    click()
+    {
+        this.changeFill(this._fillList.click)
+        this.changeVar("_isClicked", true) 
+    }
+
+    changeVar(varName, varValue)
+    {
+        this[varName] = varValue
+        // this._updated = true;
     }
 
     // A function to check if the nodes are valid by counting the nested array and the type of last array's value
@@ -237,7 +347,7 @@ class Shape
             polygonBefore = polygon;
             t.addPolygon(polygon)
         })
-            
+        // this._updated = true;
     }
 
     // A function to push created polygon to the arrays
@@ -253,34 +363,39 @@ class Shape
         // In canvas, the first polygon will always be outer ring, and if a polygon is 
         // countering the rotation of the first, then it is a hole
 
-        const t = this
+        // if(this._updated)
+        // {
+            const t = this
 
-        ctx.fillStyle = t._fill;
-        ctx.beginPath();
+            ctx.fillStyle = t._fill;
+            ctx.beginPath();
 
-        this._polygons.forEach(function(polygon){
+            this._polygons.forEach(function(polygon){
 
-            // In canvas, first iteration must be calling moveTo function, otherwise lineTo function
-            let firstIteration = true;
+                // In canvas, first iteration must be calling moveTo function, otherwise lineTo function
+                let firstIteration = true;
 
-            let nodes = polygon._nodes
+                let nodes = polygon._nodes
 
-            nodes.forEach((node) => {
-                if(firstIteration)
-                {
-                    ctx.moveTo(node[0]*10, node[1]*10); // Remember change this
-                    firstIteration = false;
-                } else {
-                    ctx.lineTo(node[0]*10, node[1]*10); // Remember change this
-                }
+                nodes.forEach((node) => {
+                    if(firstIteration)
+                    {
+                        ctx.moveTo(node[0], node[1]);
+                        firstIteration = false;
+                    } else {
+                        ctx.lineTo(node[0], node[1]);
+                    }
+                })
+                ctx.closePath();
             })
-            ctx.closePath();
-        })
-        ctx.fill();
+            ctx.fill();
+            
+            // this._updated = false;
+        // }
     }
 
     // A function to check if a point is inside of the shape
-    isPointInsideShape(point)
+    isPointInsideShape(point, zero)
     {
         // OuterRingIsCW is a variable to contain the first polygon is it a CW or CCW so the Holes must be the other way
         // With this variable we can accept both GeoJSON format and inversed GeoJSON format
@@ -297,7 +412,7 @@ class Shape
             // If it's an outer ring polygon ( Not a hole )
             if(polygon._isClockwise === outerRingIsCW)
             {
-                let inside = polygon.isPointInsidePolygon(point)
+                let inside = polygon.isPointInsidePolygon(point, zero)
                 isInside.push(inside)
             }
         })
@@ -346,7 +461,7 @@ class Polygon
     }
 
     // A function to check if the point is inside the polygon
-    isPointInsidePolygon(point)
+    isPointInsidePolygon(point, zero)
     {
         // ray-casting algorithm based on
         // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html/pnpoly.html
@@ -355,14 +470,14 @@ class Polygon
         let outsideHole = [];
         
         // X and Y coordinates of the point
-        var x = point[0] / 10, y = point[1] / 10; // Remember change this
+        var x = point[0], y = point[1];
         let vs = this._nodes
         
         // A variable to contain the boolean value of "if the point is inside the outer ring"
         var inside = false;
         for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-            var xi = vs[i][0], yi = vs[i][1];
-            var xj = vs[j][0], yj = vs[j][1];
+            var xi = vs[i][0] + zero[0], yi = vs[i][1] + zero[1];
+            var xj = vs[j][0] + zero[0], yj = vs[j][1] + zero[1];
             
             var intersect = ((yi > y) != (yj > y))
                 && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
@@ -371,7 +486,7 @@ class Polygon
 
         // Looping thru each hole to find the boolean value of "if the point is outside the hole of polygon"
         this._holes.forEach((hole) => {
-            let out = !hole.isPointInsidePolygon(point)
+            let out = !hole.isPointInsidePolygon(point, zero)
             outsideHole.push(out)
         })
 
@@ -420,21 +535,47 @@ class Layer
     }
 
     // A function to check if the point is inside on of the shape(s) and then return the shape accordingly
-    click(point, fill)
+    click(point, zero)
     {
         let clickedShape = null
 
         this._shapes.forEach((shape) => {
-            let inside = shape.isPointInsideShape(point)
+            let inside = shape.isPointInsideShape(point, zero)
             if(inside)
             {
-                shape.changeFill(fill)
+                shape.click()
                 clickedShape = shape
             }
             else
-                shape.changeFill("#d3d3d3")
+            {
+                shape.changeVar("_isClicked", false)
+                shape.idle()
+            }
         })
 
         return clickedShape
+    }
+
+    // A function to check if the point is inside on of the shape(s) and then return the shape accordingly
+    hover(point, zero)
+    {
+        let hoveredShape = null
+
+        this._shapes.forEach((shape) => {
+            let inside = shape.isPointInsideShape(point, zero)
+            if(inside)
+            {
+                shape.hover()
+                hoveredShape = shape
+            }
+            else
+            {
+                shape.changeVar("_isHovered", false)
+                shape.changeVar("_isClicked", false)
+                shape.idle()
+            }
+        })
+
+        return hoveredShape
     }
 }

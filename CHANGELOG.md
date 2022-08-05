@@ -25,4 +25,3 @@
 - On click Shape
 
 ## Bugs
-- Need to decide format, GeoJSON format or otherwaise ( Hole is ClockWise {GeoJSON} or otherwise )

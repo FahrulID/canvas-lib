@@ -87,9 +87,11 @@ class App
 
     drawLayersFrame()
     {
+        // Create a requestAnimationFrame to animate the entire canvas
         let ctx = this._ctx
         let layers = this._layers
 
+        // A function to be requested for AnimationFrame
         function frame()
         {
             ctx.clear(true);
@@ -106,7 +108,9 @@ class App
 
     setOnClick()
     {
-        
+        // To Be Change callback in Paramater
+
+        // Get X and Y coordinate of click on canvas
         let elemLeft = this._canvas.offsetLeft + this._canvas.clientLeft;
         let elemTop = this._canvas.offsetTop + this._canvas.clientTop + this._canvas.clientHeight;
 
@@ -118,14 +122,16 @@ class App
 
             for(const layer in t._layers)
             {
-                console.log(t._layers[layer].click([x, y]))
+                console.log(t._layers[layer].click([x, y], "#aa0707"))
             }
         }, false);
     }
 
     setOnHover()
     {
-        
+        // To Be Change callback in Paramater
+
+        // Get X and Y coordinate of hover on canvas
         let elemLeft = this._canvas.offsetLeft + this._canvas.clientLeft;
         let elemTop = this._canvas.offsetTop + this._canvas.clientTop + this._canvas.clientHeight;
 
@@ -137,7 +143,7 @@ class App
 
             for(const layer in t._layers)
             {
-                let inside = t._layers[layer].click([x, y])
+                let inside = t._layers[layer].click([x, y], "#3750B7")
                 if(inside)
                     console.log(inside)
             }
@@ -150,25 +156,30 @@ class Shape
 {
     _polygons = [] // Container for Polygon objects
     _isMultiPolygon // Is the shape is in Multi Polygon format ?
-    _fill = '#f00' // Color for the shape
+    _fill = '#d3d3d3' // Color for the shape
 
     constructor(nodes, reverse = false)
     {
+        // Check if the format of polygon is valid
         if(!this.isValid(nodes))
             return
 
-        
+        // Check if it is a multipolygon or not and call the create polygon function accordingly
         if(this._isMultiPolygon)
             this.createMultiPolygon(nodes)
         else   
             this.createPolygon(nodes)
     }
 
+    // A function to change the fill of the shape
     changeFill(hex)
     {
         this._fill = hex
     }
 
+    // A function to check if the nodes are valid by counting the nested array and the type of last array's value
+    // Polygon : 3 arrays
+    // Multi polygon : 4 arrays
     isValid(nodes)
     {
         let check = (list) => list.every(a => Array.isArray(a) && a.every(b => Array.isArray(b) && b.every(c => typeof c === "number")))
@@ -187,6 +198,7 @@ class Shape
         return false
     }
 
+    // A function to create polygons from Multipolygon formats
     createMultiPolygon(nodes)
     {
         const t = this
@@ -196,16 +208,28 @@ class Shape
         })
     }
 
+    // A funcion to create polygons ( holes too ) from Polygon formats
     createPolygon(nodes)
     {
         const t = this
         
+        // OuterRingIsCW is a variable to contain the first polygon is it a CW or CCW so the Holes must be the other way
+        // With this variable we can accept both GeoJSON format and inversed GeoJSON format
+        let outerRingIsCW = null
+
+        // polygonBefore is a variable to contain the last polygon object
+        // With this variable we can add Holes to the according polygon
         let polygonBefore = null
+
         nodes.forEach((node) => {
             let polygon = new Polygon(node)
 
+            // if OuterRingIsCW is not yet initiated ( First polygon )
+            if(outerRingIsCW === null)
+                outerRingIsCW = polygon._isClockwise
+
             // If it's a hole polygon
-            if(!polygon._isClockwise) // remove ! for GeoJson format, add for otherwise
+            if(polygon._isClockwise !== outerRingIsCW)
             {
                 polygonBefore.addHole(polygon)
             }
@@ -216,13 +240,19 @@ class Shape
             
     }
 
+    // A function to push created polygon to the arrays
     addPolygon(polygon) // polygon
     {
         this._polygons.push(polygon)
     }
 
+    // A function to draw the shape
     draw(ctx)
     {
+        // This function will loop thru _polygons and draw the polygon accordingly
+        // In canvas, the first polygon will always be outer ring, and if a polygon is 
+        // countering the rotation of the first, then it is a hole
+
         const t = this
 
         ctx.fillStyle = t._fill;
@@ -230,6 +260,7 @@ class Shape
 
         this._polygons.forEach(function(polygon){
 
+            // In canvas, first iteration must be calling moveTo function, otherwise lineTo function
             let firstIteration = true;
 
             let nodes = polygon._nodes
@@ -248,11 +279,23 @@ class Shape
         ctx.fill();
     }
 
+    // A function to check if a point is inside of the shape
     isPointInsideShape(point)
     {
+        // OuterRingIsCW is a variable to contain the first polygon is it a CW or CCW so the Holes must be the other way
+        // With this variable we can accept both GeoJSON format and inversed GeoJSON format
+        let outerRingIsCW = null
+
+        // An array to contain the boolean value of every outer ring value, if the point is inside the outerring and outside of holes of it
         let isInside = [];
         this._polygons.forEach((polygon) => {
-            if(polygon._isClockwise) // add ! for GeoJson format, remove for otherwise
+
+            // if OuterRingIsCW is not yet initiated ( First polygon )
+            if(outerRingIsCW === null)
+                outerRingIsCW = polygon._isClockwise
+
+            // If it's an outer ring polygon ( Not a hole )
+            if(polygon._isClockwise === outerRingIsCW)
             {
                 let inside = polygon.isPointInsidePolygon(point)
                 isInside.push(inside)
@@ -267,9 +310,9 @@ class Shape
 // Multi Polygon = add many polygons
 class Polygon
 {
-    _nodes
-    _isClockwise
-    _holes = []
+    _nodes // Container for the nodes
+    _isClockwise // A variable to contain if the polygon is CW or not
+    _holes = [] // Container for the holes of the polygon
 
     constructor(nodes)
     {
@@ -277,6 +320,7 @@ class Polygon
         this._isClockwise = this.isClockwise()
     }
 
+    // A function to check if a polygon is CW or not
     isClockwise()
     {
         let dots = this._nodes
@@ -288,26 +332,33 @@ class Polygon
         return sum < 0;
     }
 
+    // A function to push a hole polygon into the container
     addHole(polygon)
     {
         this._holes.push(polygon)
     }
 
+    // A function to reverse the order of nodes, so if it's a CW then after calling this will be CCW
     reverse()
     {
         this._nodes = this._nodes.reverse()
+        this._isClockwise = !this._isClockwise
     }
 
+    // A function to check if the point is inside the polygon
     isPointInsidePolygon(point)
     {
         // ray-casting algorithm based on
         // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html/pnpoly.html
 
+        // An array o contain boolean value of "if the point is outside the hole of polygon"
         let outsideHole = [];
         
+        // X and Y coordinates of the point
         var x = point[0] / 10, y = point[1] / 10; // Remember change this
         let vs = this._nodes
         
+        // A variable to contain the boolean value of "if the point is inside the outer ring"
         var inside = false;
         for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
             var xi = vs[i][0], yi = vs[i][1];
@@ -318,41 +369,48 @@ class Polygon
             if (intersect) inside = !inside;
         }
 
+        // Looping thru each hole to find the boolean value of "if the point is outside the hole of polygon"
         this._holes.forEach((hole) => {
             let out = !hole.isPointInsidePolygon(point)
             outsideHole.push(out)
         })
 
+        // If there is a hole in polygon then the point have to be outsed the holes, else just return true
         let outside = (outsideHole.length > 0 ) ? outsideHole.every(v => v === true) : true;
 
-        return (inside && outside) ? true : false;
+        // Returns true if it's inside the outer ring and also outside of holes ( if holes exists )
+        return inside && outside;
     }
 }
 
 class Layer
 {
-    _name
-    _shapes = []
-    _hide = false
+    _name // Container of the layer's name
+    _shapes = [] // Container for the shapes
+    _hidden = false // Container of the state of layer, is hidden or not
 
     constructor(layerName)
     {
         this._name = layerName
     }
 
+    // A function to push created shape object into the container
     addShape(shape)
     {
         this._shapes.push(shape)
     }
 
+    // A function to toggle the state of hidden for the layer
     toggleHide()
     {
-        this._hide = !this._hide
+        this._hidden = !this._hidden
     }
 
+    // A function to draw every shape inside the layer
     draw(ctx)
     {
-        if(this._hide)
+        // If the state of the layer is hidden then abort
+        if(this._hidden)
             return
         
         // Draw
@@ -361,19 +419,22 @@ class Layer
         })
     }
 
-    click(point)
+    // A function to check if the point is inside on of the shape(s) and then return the shape accordingly
+    click(point, fill)
     {
-        let isInside = [];
+        let clickedShape = null
 
         this._shapes.forEach((shape) => {
             let inside = shape.isPointInsideShape(point)
             if(inside)
-                shape.changeFill("#066ec9")
+            {
+                shape.changeFill(fill)
+                clickedShape = shape
+            }
             else
-                shape.changeFill("#F00")
-            isInside.push(inside)
+                shape.changeFill("#d3d3d3")
         })
 
-        return isInside.includes(true)
+        return clickedShape
     }
 }

@@ -11,6 +11,9 @@ class App
     _zero = [0, 0]
     _zoom = [1, 1]
 
+    _forceUpdate = true
+    _reqID = null
+
     constructor(id)
     {
         // initiate variables
@@ -46,6 +49,11 @@ class App
     start()
     {
         this.drawLayersFrame()
+    }
+
+    stop()
+    {
+        window.cancelAnimationFrame(this._reqID)
     }
 
     // A function to create layer
@@ -103,18 +111,21 @@ class App
         // Create a requestAnimationFrame to animate the entire canvas
         let ctx = this._ctx
         let layers = this._layers
+        let t = this
 
         // A function to be requested for AnimationFrame
         function frame()
         {
-            ctx.clear(true);
+            if(t._forceUpdate)
+                ctx.clear(true);
             
             // Looping through every single Layer object inside array
             for(const layer in layers)
             {
-                layers[layer].draw(ctx)
+                layers[layer].draw(ctx, t._forceUpdate)
             }
-            window.requestAnimationFrame(frame);
+            t._forceUpdate = false
+            t._reqID = window.requestAnimationFrame(frame);
         }
         window.requestAnimationFrame(frame);
     }
@@ -165,7 +176,6 @@ class App
     mapDown(coord)
     {
         this._lastPan = coord
-        console.log(coord)
     }
 
     mapDrag(coord)
@@ -175,6 +185,7 @@ class App
         if(this._lastPan == 0)
             return
 
+        this._forceUpdate = true;
         t._zero[0] += (x - t._lastPan[0]) ;
         t._zero[1] += (y - t._lastPan[1]) ;
 
@@ -236,12 +247,14 @@ class Shape
     _fillList = {
         'click': '#aa0707',
         'hover': '#3750B7',
-        'default': '#d3d3d3'
+        'default': '#d3d3d3',
+        'border': '#222222'
     }
+    _strokeWidth = 0.02
 
     _isClicked = false
     _isHovered = false
-    // _updated = false
+    _updated = false
 
     constructor(nodes, reverse = false)
     {
@@ -260,6 +273,7 @@ class Shape
     changeFill(hex)
     {
         this.changeVar("_fill", hex)
+        this._updated = true;
     }
 
     idle()
@@ -284,7 +298,6 @@ class Shape
     changeVar(varName, varValue)
     {
         this[varName] = varValue
-        // this._updated = true;
     }
 
     // A function to check if the nodes are valid by counting the nested array and the type of last array's value
@@ -357,41 +370,44 @@ class Shape
     }
 
     // A function to draw the shape
-    draw(ctx)
+    draw(ctx, force = false)
     {
         // This function will loop thru _polygons and draw the polygon accordingly
         // In canvas, the first polygon will always be outer ring, and if a polygon is 
         // countering the rotation of the first, then it is a hole
 
-        // if(this._updated)
-        // {
-            const t = this
+        const t = this
+        if(!this._updated && !force)
+            return
 
-            ctx.fillStyle = t._fill;
-            ctx.beginPath();
+        ctx.fillStyle = t._fill;
+        ctx.strokeStyle = t._fillList.border;
+        ctx.lineWidth = t._strokeWidth;
 
-            this._polygons.forEach(function(polygon){
+        ctx.beginPath();
 
-                // In canvas, first iteration must be calling moveTo function, otherwise lineTo function
-                let firstIteration = true;
+        this._polygons.forEach(function(polygon){
 
-                let nodes = polygon._nodes
+            // In canvas, first iteration must be calling moveTo function, otherwise lineTo function
+            let firstIteration = true;
 
-                nodes.forEach((node) => {
-                    if(firstIteration)
-                    {
-                        ctx.moveTo(node[0], node[1]);
-                        firstIteration = false;
-                    } else {
-                        ctx.lineTo(node[0], node[1]);
-                    }
-                })
-                ctx.closePath();
+            let nodes = polygon._nodes
+
+            nodes.forEach((node) => {
+                if(firstIteration)
+                {
+                    ctx.moveTo(node[0], node[1]);
+                    firstIteration = false;
+                } else {
+                    ctx.lineTo(node[0], node[1]);
+                }
             })
-            ctx.fill();
-            
-            // this._updated = false;
-        // }
+            ctx.closePath();
+        })
+        ctx.fill();
+        ctx.stroke();
+        
+        this._updated = false;
     }
 
     // A function to check if a point is inside of the shape
@@ -522,7 +538,7 @@ class Layer
     }
 
     // A function to draw every shape inside the layer
-    draw(ctx)
+    draw(ctx, forceUpdate = false)
     {
         // If the state of the layer is hidden then abort
         if(this._hidden)
@@ -530,7 +546,7 @@ class Layer
         
         // Draw
         this._shapes.forEach((shape) => {
-            shape.draw(ctx)
+            shape.draw(ctx, forceUpdate)
         })
     }
 
@@ -548,8 +564,11 @@ class Layer
             }
             else
             {
-                shape.changeVar("_isClicked", false)
-                shape.idle()
+                if(shape._isClicked)
+                {
+                    shape.changeVar("_isClicked", false)
+                    shape.idle()
+                }
             }
         })
 
@@ -570,9 +589,12 @@ class Layer
             }
             else
             {
-                shape.changeVar("_isHovered", false)
-                shape.changeVar("_isClicked", false)
-                shape.idle()
+                if(shape._isHovered || shape._isClicked)
+                {
+                    shape.changeVar("_isHovered", false)
+                    shape.changeVar("_isClicked", false)
+                    shape.idle()
+                }
             }
         })
 

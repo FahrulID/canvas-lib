@@ -27,7 +27,7 @@
 - Panning
 - Importing GeoJSON
 - Shape border
+- Draw only what appear on screen
 
 ## Bugs
 - Performance is not that sh*t anymore, but panning is a mess for the performance.
-- Draw every single cr*p, need to fix this by only draw what appear on screen.

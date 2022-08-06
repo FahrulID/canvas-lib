@@ -24,12 +24,16 @@
             var usa;
             document.addEventListener("DOMContentLoaded", () => {
                 app = new App("canvas")
-                 
+                app.start()
+
+                // app.createShape([
+                //     [[350.0, 100.0], [450.0, 450.0], [150.0, 400.0], [100.0, 200.0], [350.0, 100.0]], 
+                //     [[200.0, 300.0], [350.0, 350.0], [300.0, 200.0], [200.0, 300.0]]
+                // ])
 
                 fetch("./usa.json")
                 .then(response => response.json())
-                .then(json => usa = json)
-                .then(app.importGeoJSON(usa));
+                .then(json => app.importGeoJSON(json))
                 // app.createShape([ [ 50, 100 ], [ 120, 70 ], [ 90, 70 ], [ 70, 50 ] ])
             })
         </script>

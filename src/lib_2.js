@@ -7,6 +7,7 @@ class App
     _ctx // Context of the canvas element
     _layers = {} // Layers for canvas
 
+    _panning = false
     _lastPan = []
     _zero = [0, 0]
     _zoom = [1, 1]
@@ -92,7 +93,7 @@ class App
     {
         this.resetCanvas()
         // Calling function draw inside the object Layer
-        this._layers[layerName].draw(this._ctx)
+        this._layers[layerName].draw(this._ctx, this._forceUpdate, this._zero)
     }
 
     // A function to draw all layers
@@ -122,7 +123,7 @@ class App
             // Looping through every single Layer object inside array
             for(const layer in layers)
             {
-                layers[layer].draw(ctx, t._forceUpdate)
+                layers[layer].draw(ctx, t._forceUpdate, t._zero)
             }
             t._forceUpdate = false
             t._reqID = window.requestAnimationFrame(frame);
@@ -143,6 +144,8 @@ class App
         this._canvas.addEventListener('click', function(event) {
             var x = event.pageX - elemLeft,
                 y = elemTop - event.pageY;
+
+            console.log("x: %s , y: %s", x, y)
             t.shapeClick([x, y])
 
         }, false);
@@ -185,6 +188,7 @@ class App
         if(this._lastPan == 0)
             return
 
+        this._panning = true
         this._forceUpdate = true;
         t._zero[0] += (x - t._lastPan[0]) ;
         t._zero[1] += (y - t._lastPan[1]) ;
@@ -197,10 +201,13 @@ class App
     mapUp()
     {
         this._lastPan = []
+        this._panning = false
     }
 
     shapeClick(coord)
     {
+        if(this._panning)
+            return
         const t = this
         for(const layer in t._layers)
         {
@@ -210,12 +217,12 @@ class App
 
     shapeHover(coord)
     {
+        if(this._panning)
+            return
         const t = this
         for(const layer in t._layers)
         {
             let inside = t._layers[layer].hover(coord, t._zero)
-            if(inside)
-                console.log(inside)
         }
     }
 
@@ -242,6 +249,7 @@ class App
 class Shape
 {
     _polygons = [] // Container for Polygon objects
+    _drawBox = [] // Contains leftmost x and y, also rightmost x and y
     _isMultiPolygon // Is the shape is in Multi Polygon format ?
     _fill = '#d3d3d3' // Color for the shape
     _fillList = {
@@ -255,6 +263,7 @@ class Shape
     _isClicked = false
     _isHovered = false
     _updated = false
+    _seen = null;
 
     constructor(nodes, reverse = false)
     {
@@ -267,6 +276,43 @@ class Shape
             this.createMultiPolygon(nodes)
         else   
             this.createPolygon(nodes)
+
+        this.setDrawBox()
+    }
+
+    setDrawBox()
+    {
+        let x = [null, null];
+        let y = [null, null];
+
+        this._polygons.forEach(function(polygon){
+            polygon._nodes.forEach(function(node){
+                // Initiate value
+                if(x[0] == null)
+                {
+                    x[0] = node[0]
+                    x[1] = node[0]
+                }
+                if(y[0] == null)
+                {
+                    y[0] = node[1]
+                    y[1] = node[1]
+                }
+    
+                // Finding leftmost x, rightmost x, topmost y and bottommost y
+                if(node[0] < x[0])
+                    x[0] = node[0]
+                else if(node[0] > x[1])
+                    x[1] = node[0]
+    
+                if(node[1] < y[0])
+                    y[0] = node[1]
+                else if(node[1] > y[1])
+                    y[1] = node[1]
+            })
+        })
+
+        this._drawBox = [x, y]
     }
 
     // A function to change the fill of the shape
@@ -370,13 +416,17 @@ class Shape
     }
 
     // A function to draw the shape
-    draw(ctx, force = false)
+    draw(ctx, force = false, zero = null)
     {
         // This function will loop thru _polygons and draw the polygon accordingly
         // In canvas, the first polygon will always be outer ring, and if a polygon is 
         // countering the rotation of the first, then it is a hole
 
         const t = this
+
+        if(!this.isShapeCanBeSeen(ctx, zero))
+            return
+
         if(!this._updated && !force)
             return
 
@@ -408,6 +458,52 @@ class Shape
         ctx.stroke();
         
         this._updated = false;
+    }
+
+    isShapeCanBeSeen(ctx, zero)
+    {
+        function inside(point, vs) {
+            // ray-casting algorithm based on
+            // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html/pnpoly.html
+            
+            var x = point[0], y = point[1];
+            
+            var inside = false;
+            for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                var xi = vs[i][0], yi = vs[i][1];
+                var xj = vs[j][0], yj = vs[j][1];
+                
+                var intersect = ((yi > y) != (yj > y))
+                    && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            
+            return inside;
+        };
+
+        let isInside = false
+        let mapBoundary = [[0, 0], [0, ctx.canvas.height], [ctx.canvas.width, ctx.canvas.height], [ctx.canvas.width, 0], [0, 0]]
+
+        for(var x = 0; x < 2; x++)
+        {
+            for(var y = 0; y < 2; y++)
+            {
+                let check = inside([zero[0] + this._drawBox[0][x], zero[1] + this._drawBox[1][y]], mapBoundary)
+
+                if(check)
+                {
+                    isInside = check
+                    // console.log([this._drawBox[0][x], this._drawBox[1][y]], mapBoundary)
+                } else {
+                    // console.log([this._drawBox[0][x], this._drawBox[1][y]], mapBoundary)
+                }
+            }
+        }
+
+        if(this._seen !== isInside)
+            this._seen = isInside
+        
+        return isInside
     }
 
     // A function to check if a point is inside of the shape
@@ -538,7 +634,7 @@ class Layer
     }
 
     // A function to draw every shape inside the layer
-    draw(ctx, forceUpdate = false)
+    draw(ctx, forceUpdate = false, zero = null)
     {
         // If the state of the layer is hidden then abort
         if(this._hidden)
@@ -546,7 +642,7 @@ class Layer
         
         // Draw
         this._shapes.forEach((shape) => {
-            shape.draw(ctx, forceUpdate)
+            shape.draw(ctx, forceUpdate, zero)
         })
     }
 

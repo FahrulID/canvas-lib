@@ -17,6 +17,11 @@
     </style>
 </head>
     <body>
+        <div style="position: fixed; top: 20px; right: 50px; color: white;">
+            <p>Zoom : <span id="zoomX">1</span>, <span id="zoomY">1</span></p>
+            <p>Zero : <span id="zeroX">0</span>, <span id="zeroY">0</span></p>
+            <p>Viewport : <span id="viewX">0</span>, <span id="viewY">0</span></p>
+        </div>
         <canvas id="canvas" style="border: 2px solid #ccc;"></canvas>
 
         <script>
@@ -34,6 +39,27 @@
                 fetch("./MediumPolyUSA.json")
                 .then(response => response.json())
                 .then(json => app.importGeoJSON(json))
+
+                // fetch("./canadaMed.json")
+                // .then(response => response.json())
+                // .then(json => app.importGeoJSON(json))
+
+                // fetch("./mexican_states.json")
+                // .then(response => response.json())
+                // .then(json => app.importGeoJSON(json))
+                
+                // fetch("./russia.json")
+                // .then(response => response.json())
+                // .then(json => app.importGeoJSON(json))
+                
+                // fetch("./china.json")
+                // .then(response => response.json())
+                // .then(json => app.importGeoJSON(json))
+                
+                // fetch("./indonesia.json")
+                // .then(response => response.json())
+                // .then(json => app.importGeoJSON(json))
+
                 // app.createShape([ [ 50, 100 ], [ 120, 70 ], [ 90, 70 ], [ 70, 50 ] ])
             })
         </script>

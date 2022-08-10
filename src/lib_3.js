@@ -9,13 +9,9 @@ class App
 
     _panning = false
     _lastPan = []
-    _lastOffset = [0, 0]
-    _offset = [0, 0] // Offset
-    _scale = [1, 1]
-    _scaleIntensity = 0.2
-
-    _viewport = [0, 0]
-    _scaleSensitivity = 500; // bigger for lower zoom per scroll
+    _zero = [0, 0]
+    _zoom = [1, 1]
+    _zoomIntensity = 0.2
 
     _forceUpdate = true
     _reqID = null
@@ -34,10 +30,14 @@ class App
 
         CanvasRenderingContext2D.prototype.clear = CanvasRenderingContext2D.prototype.clear || function (preserveTransform) {
             if (preserveTransform) {
-            
-                const storedTransform = this.getTransform();
-                this.canvas.width = this.canvas.width;
-                this.setTransform(storedTransform);
+            this.save();
+            this.setTransform(1, 0, 0, 1, 0, 0);
+            }
+
+            this.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            if (preserveTransform) {
+            this.restore();
             }           
         };
 
@@ -51,12 +51,10 @@ class App
 
     updateData()
     {
-        document.getElementById("zoomX").textContent = this._scale[0]
-        document.getElementById("zoomY").textContent = this._scale[1]
-        document.getElementById("zeroX").textContent = this._offset[0]
-        document.getElementById("zeroY").textContent = this._offset[1]
-        document.getElementById("viewX").textContent = this._viewport[0]
-        document.getElementById("viewY").textContent = this._viewport[1]
+        document.getElementById("zoomX").textContent = this._zoom[0]
+        document.getElementById("zoomY").textContent = this._zoom[1]
+        document.getElementById("zeroX").textContent = this._zero[0]
+        document.getElementById("zeroY").textContent = this._zero[1]
     }
 
     drawBoundary()
@@ -110,7 +108,7 @@ class App
     {
         this.resetCanvas()
         // Calling function draw inside the object Layer
-        this._layers[layerName].draw(this._ctx, this._forceUpdate, this._offset, this._scale)
+        this._layers[layerName].draw(this._ctx, this._forceUpdate, this._zero, this._zoom)
     }
 
     // A function to draw all layers
@@ -140,7 +138,7 @@ class App
             // Looping through every single Layer object inside array
             for(const layer in layers)
             {
-                layers[layer].draw(ctx, t._forceUpdate, t._viewport * -1, t._scale)
+                layers[layer].draw(ctx, t._forceUpdate, t._zero, t._zoom)
             }
             t._forceUpdate = false
             t.updateData()
@@ -206,54 +204,36 @@ class App
             y = elemTop - event.pageY;
 
             let delta = event.deltaY < 0 ? 1 : -1;
-            t.mapScroll([x, y], event.deltaY)
+            t.mapScroll([x, y], delta)
         })
     }
 
     mapScroll(coord, delta)
     {
-        // this._ctx.translate(this._offset[0], this._offset[1])
+        // this._ctx.translate(this._zero[0], this._zero[1])
 
-        // let zoom = Math.exp(delta * this._scaleIntensity);
+        // let zoom = Math.exp(delta * this._zoomIntensity);
         // this._ctx.scale(zoom, zoom)
         // this._ctx.translate(
-        //     -(coord[0] / this._scale[0] + this._offset[0] - coord[0] / (this._scale[0] * zoom)),
-        //     -(coord[1] / this._scale[1] + this._offset[1] - coord[1] / (this._scale[1] * zoom))
+        //     -(coord[0] / this._zoom[0] + this._zero[0] - coord[0] / (this._zoom[0] * zoom)),
+        //     -(coord[1] / this._zoom[1] + this._zero[1] - coord[1] / (this._zoom[1] * zoom))
         // )
 
-        // this._offset[0] = (coord[0] / this._scale[0] + this._offset[0] - coord[0] / (this._scale[0] * zoom))
-        // this._offset[1] = (coord[1] / this._scale[1] + this._offset[1] - coord[1] / (this._scale[1] * zoom))
-        // this._scale = [this._scale[0] * zoom, this._scale[1] * zoom]
+        // this._zero[0] = (coord[0] / this._zoom[0] + this._zero[0] - coord[0] / (this._zoom[0] * zoom))
+        // this._zero[1] = (coord[1] / this._zoom[1] + this._zero[1] - coord[1] / (this._zoom[1] * zoom))
+        // this._zoom = [this._zoom[0] * zoom, this._zoom[1] * zoom]
 
-        //////
+        
+        let zoom = Math.exp(delta * this._zoomIntensity);
 
-        // let zoom = Math.exp(delta * this._scaleIntensity);
+        this._ctx.translate((coord[0] - this._zero[0]) * (1/this._zoom[0]), (coord[1] - this._zero[1]) * (1/this._zoom[1]))
 
-        // this._ctx.translate(-this._offset[0] + coord[0], -this._offset[1] + coord[1])
+        this._ctx.scale(zoom, zoom)
 
-        // this._ctx.scale(zoom, zoom)
+        this._zoom[0] *= zoom
+        this._zoom[1] *= zoom
 
-        // this._ctx.translate(-(-this._offset[0] + coord[0]), -(-this._offset[1] + coord[1]))
-
-        // this._scale = [this._scale[0] * zoom, this._scale[1] * zoom]
-
-        const zoom = 1 - delta / this._scaleSensitivity;
-        const viewportDelta = [
-          (coord[0] / this._scale[0]) * (1 - 1 / zoom),
-          (coord[1] / this._scale[1]) * (1 - 1 / zoom)
-        ];
-        const newViewport = [
-            this._viewport[0] + viewportDelta[0],
-            this._viewport[1] + viewportDelta[1]
-        ];
-
-        this._ctx.translate(this._viewport[0], this._viewport[1]);
-        this._ctx.scale(zoom, zoom);
-        this._ctx.translate(-newViewport[0], -newViewport[1]);
-
-        this._viewport = newViewport
-
-        this._scale = [this._scale[0] * zoom, this._scale[1] * zoom]
+        this._ctx.translate((-coord[0] + this._zero[0]) * (1/this._zoom[0]), (-coord[1] + this._zero[1]) * (1/this._zoom[1]))
 
         this._forceUpdate = true;
     }
@@ -272,22 +252,10 @@ class App
 
         this._panning = true
         this._forceUpdate = true;
+        t._zero[0] += (x - t._lastPan[0]) ;
+        t._zero[1] += (y - t._lastPan[1]) ;
 
-        t._lastOffset[0] = t._offset[0]
-        t._lastOffset[1] = t._offset[1]
-
-        t._offset[0] += (x - t._lastPan[0]) ;
-        t._offset[1] += (y - t._lastPan[1]) ;
-
-        let offsetDiff = [
-            (t._offset[0] - t._lastOffset[0]) * (1/t._scale[0]),
-            (t._offset[1] - t._lastOffset[1]) * (1/t._scale[1])
-        ]
-
-        t._viewport[0] -= offsetDiff[0] ;
-        t._viewport[1] -= offsetDiff[1] ;
-
-        t._ctx.translate(offsetDiff[0], offsetDiff[1])
+        t._ctx.translate((x - t._lastPan[0]) * (1/t._zoom[0]), (y - t._lastPan[1]) * (1/t._zoom[1]))
         t._lastPan[0] = x
         t._lastPan[1] = y
     }
@@ -305,7 +273,7 @@ class App
         const t = this
         for(const layer in t._layers)
         {
-            console.log(t._layers[layer].click(coord, [-t._viewport[0], -t._viewport[1]], t._scale))
+            console.log(t._layers[layer].click(coord, t._zero, t._zoom))
         }
     }
 
@@ -316,7 +284,7 @@ class App
         const t = this
         for(const layer in t._layers)
         {
-            let inside = t._layers[layer].hover(coord, [-t._viewport[0], -t._viewport[1]], t._scale)
+            let inside = t._layers[layer].hover(coord, t._zero, t._zoom)
         }
     }
 
@@ -357,7 +325,7 @@ class Shape
     _isClicked = false
     _isHovered = false
     _updated = false
-    _seen = true; // Ingat Null
+    _seen = null; // Ingat Null
 
     constructor(nodes, reverse = false)
     {
@@ -519,8 +487,8 @@ class Shape
         const t = this
 
         // Ingat Uncomment
-        // if(!this.isShapeCanBeSeen(ctx, zero, scale))
-        //     return
+        if(!this.isShapeCanBeSeen(ctx, zero, scale))
+            return
 
         if(!this._updated && !force)
             return
